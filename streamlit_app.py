@@ -1,83 +1,86 @@
+import streamlit as st
+import pandas as pd
 import datetime
 
-class WorkoutEntry:
-    def __init__(self, exercise, weight, reps, sets, duration):
-        self.date = datetime.date.today()
-        self.exercise = exercise
-        self.weight = weight
-        self.reps = reps
-        self.sets = sets
-        self.duration = duration  # in minuti
+# Inizializza storage (session_state)
+if "workouts" not in st.session_state:
+    st.session_state.workouts = []
 
-    @property
-    def total_reps(self):
-        return self.reps * self.sets
+# Funzione per aggiungere una sessione di allenamento
+def add_workout(exercise, weight, reps, sets, duration):
+    date = datetime.date.today()
+    total_reps = reps * sets
+    volume = weight * total_reps
+    density = volume / duration if duration > 0 else 0
+    avg_load = volume / total_reps if total_reps > 0 else 0
 
-    @property
-    def volume(self):
-        return self.weight * self.total_reps
+    st.session_state.workouts.append({
+        "Data": str(date),
+        "Esercizio": exercise,
+        "Peso (kg)": weight,
+        "Serie": sets,
+        "Ripetizioni": reps,
+        "Durata (min)": duration,
+        "Volume": volume,
+        "Densità": round(density, 2),
+        "Carico medio per rep": round(avg_load, 2)
+    })
 
-    @property
-    def density(self):
-        return self.volume / self.duration if self.duration > 0 else 0
+# Funzione per calcolare feedback
 
-    @property
-    def avg_load_per_rep(self):
-        return self.volume / self.total_reps if self.total_reps > 0 else 0
+def feedback(exercise):
+    records = [w for w in st.session_state.workouts if w["Esercizio"] == exercise]
+    if len(records) < 2:
+        return "Non ci sono abbastanza dati per valutare la progressione."
 
-    def summary(self):
-        return {
-            "Esercizio": self.exercise,
-            "Data": str(self.date),
-            "Volume": self.volume,
-            "Densità": round(self.density, 2),
-            "Ripetizioni Totali": self.total_reps,
-            "Carico medio per rep": round(self.avg_load_per_rep, 2)
-        }
+    latest = records[-1]
+    prev = records[-2]
 
+    diff_volume = latest["Volume"] - prev["Volume"]
+    diff_density = latest["Densità"] - prev["Densità"]
 
-class ProgressTracker:
-    def __init__(self):
-        self.history = []
+    fb = f"Progressione per {exercise} ({latest['Data']}):\n"
+    fb += f"- Volume: {latest['Volume']} ({'+' if diff_volume>=0 else ''}{diff_volume})\n"
+    fb += f"- Densità: {latest['Densità']} ({'+' if diff_density>=0 else ''}{diff_density:.2f})\n"
 
-    def add_entry(self, entry):
-        self.history.append(entry)
+    if diff_volume > 0:
+        fb += "Ottimo! Hai aumentato il volume."
+    elif diff_volume < 0:
+        fb += "Attenzione: volume in calo."
 
-    def feedback(self, exercise):
-        records = [e for e in self.history if e.exercise == exercise]
-        if len(records) < 2:
-            return "Non ci sono abbastanza dati per valutare la progressione."
+    return fb
 
-        latest = records[-1]
-        prev = records[-2]
+# ===================== STREAMLIT APP =====================
 
-        diff_volume = latest.volume - prev.volume
-        diff_density = latest.density - prev.density
+st.title("🏋️ Tracciamento Progressi in Palestra")
 
-        feedback = f"Progressione per {exercise} ({latest.date}):\n"
-        feedback += f"- Volume: {latest.volume} ({'+' if diff_volume>=0 else ''}{diff_volume})\n"
-        feedback += f"- Densità: {latest.density:.2f} ({'+' if diff_density>=0 else ''}{diff_density:.2f})\n"
+st.subheader("Inserisci un nuovo allenamento")
+with st.form("workout_form"):
+    exercise = st.text_input("Esercizio", "Panca Piana")
+    weight = st.number_input("Peso (kg)", min_value=0, value=60)
+    reps = st.number_input("Ripetizioni", min_value=1, value=10)
+    sets = st.number_input("Serie", min_value=1, value=3)
+    duration = st.number_input("Durata (min)", min_value=1, value=30)
+    submitted = st.form_submit_button("Aggiungi")
 
-        if diff_volume > 0:
-            feedback += "Ottimo! Hai aumentato il volume.\n"
-        elif diff_volume < 0:
-            feedback += "Attenzione: volume in calo.\n"
+    if submitted:
+        add_workout(exercise, weight, reps, sets, duration)
+        st.success("Allenamento aggiunto!")
 
-        return feedback
+# Mostra storico allenamenti
+if st.session_state.workouts:
+    df = pd.DataFrame(st.session_state.workouts)
+    st.subheader("📊 Storico Allenamenti")
+    st.dataframe(df)
 
+    # Selezione esercizio per feedback
+    esercizi = df["Esercizio"].unique().tolist()
+    scelta = st.selectbox("Seleziona esercizio per analisi:", esercizi)
+    st.text(feedback(scelta))
 
-# ESEMPIO D'USO
-tracker = ProgressTracker()
-
-# Inserisco 2 sessioni di panca piana
-session1 = WorkoutEntry("Panca Piana", weight=60, reps=10, sets=3, duration=30)
-session2 = WorkoutEntry("Panca Piana", weight=65, reps=10, sets=3, duration=30)
-
-tracker.add_entry(session1)
-tracker.add_entry(session2)
-
-print(session1.summary())
-print(session2.summary())
-print(tracker.feedback("Panca Piana"))
+    # Grafico progressione volume
+    st.subheader("📈 Progressione Volume")
+    chart_data = df[df["Esercizio"] == scelta][["Data", "Volume"]]
+    st.line_chart(chart_data.set_index("Data"))
 
 
