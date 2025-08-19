@@ -57,7 +57,7 @@ def add_workout(date, split, exercise, weight, reps_list, rest_time, rep_range):
     save_workouts()
 
 # Funzione per calcolare feedback globale
-def feedback(split, exercise):
+def feedback(split, exercise, rep_range):
     records = [w for w in st.session_state.workouts if w["Esercizio"] == exercise and w["Split"] == split]
     if len(records) < 2:
         return "Non ci sono abbastanza dati per valutare la progressione."
@@ -95,9 +95,11 @@ with st.form("workout_form"):
     n_sets = st.number_input("Numero di serie", min_value=1, value=3)
 
     reps_list = []
-    for i in range(int(n_sets)):
-        r = st.number_input(f"Ripetizioni serie {i+1}", min_value=1, value=10, key=f"rep_{i}")
-        reps_list.append(r)
+    if n_sets > 0:
+        st.subheader("Ripetizioni per serie")
+        for i in range(int(n_sets)):
+            r = st.number_input(f"Serie {i+1}", min_value=1, value=10, key=f"rep_{i}")
+            reps_list.append(r)
 
     rest_time = st.number_input("Tempo medio di recupero tra le serie (s)", min_value=0, value=90)
     min_reps = st.number_input("Ripetizioni minime per il range", min_value=1, value=8)
@@ -121,7 +123,7 @@ if st.session_state.workouts:
     df_filtered = df[(df["Split"] == split_scelta) & (df["Esercizio"] == scelta)]
     st.dataframe(df_filtered)
 
-    st.text(feedback(split_scelta, scelta))
+    st.text(feedback(split_scelta, scelta, (min_reps, max_reps)))
 
     st.subheader("📈 Progressione Volume")
     chart_data = df_filtered[["Data", "Volume"]]
@@ -152,4 +154,3 @@ if st.session_state.workouts:
         st.session_state.workouts.clear()
         save_workouts()
         st.success("Tutti gli allenamenti sono stati eliminati!")
-
