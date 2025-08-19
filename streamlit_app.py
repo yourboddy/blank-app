@@ -126,3 +126,32 @@ if st.session_state.workouts:
     st.dataframe(df_filtered)
 
     st.text(feedback(split_scelta, scelta))
+
+    # Grafici delle progressioni
+    st.subheader("📈 Progressione Volume")
+    st.line_chart(df_filtered.set_index("Data")["Volume"])
+
+    st.subheader("⚡ Progressione Densità")
+    st.line_chart(df_filtered.set_index("Data")["Densità"])
+
+    st.subheader("🏋️‍♂️ Progressione Carico Medio")
+    st.line_chart(df_filtered.set_index("Data")["Carico medio per rep"])
+
+    st.subheader("🌟 Progressione Globale (Progress Score)")
+    st.line_chart(df_filtered.set_index("Data")["Progress Score"])
+
+    # Eliminazione allenamenti
+    st.subheader("🗑️ Gestione Allenamenti")
+    idx_to_delete = st.selectbox("Seleziona l'allenamento da eliminare", [f"{i} - {w['Data']} - {w['Split']} - {w['Esercizio']}" for i, w in enumerate(df_filtered.to_dict('records'))])
+    if st.button("Elimina allenamento selezionato"):
+        record_to_delete = df_filtered.to_dict('records')[int(idx_to_delete.split(' - ')[0])]
+        original_idx = next(i for i, w in enumerate(st.session_state.workouts) if w == record_to_delete)
+        st.session_state.workouts.pop(original_idx)
+        save_workouts()
+        st.success("Allenamento eliminato!")
+
+    if st.button("Elimina tutti gli allenamenti"):
+        st.session_state.workouts.clear()
+        save_workouts()
+        st.success("Tutti gli allenamenti sono stati eliminati!")
+
