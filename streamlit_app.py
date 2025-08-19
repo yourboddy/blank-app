@@ -7,9 +7,9 @@ if "workouts" not in st.session_state:
     st.session_state.workouts = []
 
 # Funzione per aggiungere una sessione di allenamento
-def add_workout(exercise, weight, reps, sets, duration):
+def add_workout(exercise, weight, reps_list, duration):
     date = datetime.date.today()
-    total_reps = reps * sets
+    total_reps = sum(reps_list)
     volume = weight * total_reps
     density = volume / duration if duration > 0 else 0
     avg_load = volume / total_reps if total_reps > 0 else 0
@@ -18,8 +18,9 @@ def add_workout(exercise, weight, reps, sets, duration):
         "Data": str(date),
         "Esercizio": exercise,
         "Peso (kg)": weight,
-        "Serie": sets,
-        "Ripetizioni": reps,
+        "Serie": len(reps_list),
+        "Ripetizioni per serie": str(reps_list),
+        "Ripetizioni totali": total_reps,
         "Durata (min)": duration,
         "Volume": volume,
         "Densità": round(density, 2),
@@ -27,7 +28,6 @@ def add_workout(exercise, weight, reps, sets, duration):
     })
 
 # Funzione per calcolare feedback
-
 def feedback(exercise):
     records = [w for w in st.session_state.workouts if w["Esercizio"] == exercise]
     if len(records) < 2:
@@ -58,13 +58,18 @@ st.subheader("Inserisci un nuovo allenamento")
 with st.form("workout_form"):
     exercise = st.text_input("Esercizio", "Panca Piana")
     weight = st.number_input("Peso (kg)", min_value=0, value=60)
-    reps = st.number_input("Ripetizioni", min_value=1, value=10)
-    sets = st.number_input("Serie", min_value=1, value=3)
+    n_sets = st.number_input("Numero di serie", min_value=1, value=3)
+
+    reps_list = []
+    for i in range(int(n_sets)):
+        r = st.number_input(f"Ripetizioni serie {i+1}", min_value=1, value=10, key=f"rep_{i}")
+        reps_list.append(r)
+
     duration = st.number_input("Durata (min)", min_value=1, value=30)
     submitted = st.form_submit_button("Aggiungi")
 
     if submitted:
-        add_workout(exercise, weight, reps, sets, duration)
+        add_workout(exercise, weight, reps_list, duration)
         st.success("Allenamento aggiunto!")
 
 # Mostra storico allenamenti
