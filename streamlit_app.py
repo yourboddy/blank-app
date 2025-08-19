@@ -105,3 +105,11 @@ if st.session_state.workouts:
     chart_score = df[df["Esercizio"] == scelta][["Data", "Progress Score"]]
     st.line_chart(chart_score.set_index("Data"))
 
+    # Sezione per eliminare allenamenti
+    st.subheader("🗑️ Elimina un allenamento")
+    idx_to_delete = st.selectbox("Seleziona l'allenamento da eliminare:", [f"{i} - {w['Data']} - {w['Esercizio']}" for i, w in enumerate(st.session_state.workouts)])
+    if st.button("Elimina"):
+        idx = int(idx_to_delete.split(" - ")[0])
+        st.session_state.workouts.pop(idx)
+        st.success("Allenamento eliminato!")
+
