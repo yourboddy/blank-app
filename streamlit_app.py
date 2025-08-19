@@ -106,10 +106,17 @@ if st.session_state.workouts:
     st.line_chart(chart_score.set_index("Data"))
 
     # Sezione per eliminare allenamenti
-    st.subheader("🗑️ Elimina un allenamento")
+    st.subheader("🗑️ Gestione Allenamenti")
+
+    # Eliminare un singolo allenamento
     idx_to_delete = st.selectbox("Seleziona l'allenamento da eliminare:", [f"{i} - {w['Data']} - {w['Esercizio']}" for i, w in enumerate(st.session_state.workouts)])
-    if st.button("Elimina"):
+    if st.button("Elimina allenamento selezionato"):
         idx = int(idx_to_delete.split(" - ")[0])
         st.session_state.workouts.pop(idx)
         st.success("Allenamento eliminato!")
+
+    # Eliminare tutti gli allenamenti
+    if st.button("Elimina tutti gli allenamenti"):
+        st.session_state.workouts.clear()
+        st.success("Tutti gli allenamenti sono stati eliminati!")
 
