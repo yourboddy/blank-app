@@ -89,20 +89,20 @@ with st.form("workout_form"):
     for i in range(5):
         col1, col2, col3, col4 = st.columns(4)
         with col1:
-            weight = st.number_input(f"Serie {i+1} Peso (kg)", min_value=0, value=0, key=f"weight_{i}")
+            weight = st.number_input(f"Serie {i+1} Peso (kg)", min_value=0.0, value=0.0, step=0.5, key=f"weight_{i}")
         with col2:
-            reps = st.number_input(f"Serie {i+1} Ripetizioni", min_value=0, value=0, key=f"rep_{i}")
+            reps = st.number_input(f"Serie {i+1} Ripetizioni", min_value=0.0, value=0.0, step=0.5, key=f"rep_{i}")
         with col3:
-            min_rep = st.number_input(f"Serie {i+1} min", min_value=0, value=8, key=f"min_{i}")
+            min_rep = st.number_input(f"Serie {i+1} min", min_value=0.0, value=8.0, step=0.5, key=f"min_{i}")
         with col4:
-            max_rep = st.number_input(f"Serie {i+1} max", min_value=min_rep, value=12, key=f"max_{i}")
+            max_rep = st.number_input(f"Serie {i+1} max", min_value=min_rep, value=12.0, step=0.5, key=f"max_{i}")
 
         if reps > 0 and weight > 0:
             reps_list.append(reps)
             weight_list.append(weight)
             rep_range_per_set.append((min_rep, max_rep))
 
-    rest_time = st.number_input("Tempo medio di recupero tra le serie (s)", min_value=0, value=90)
+    rest_time = st.number_input("Tempo medio di recupero tra le serie (s)", min_value=0.0, value=90.0, step=0.5)
 
     submitted = st.form_submit_button("Aggiungi")
 
