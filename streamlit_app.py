@@ -8,8 +8,11 @@ CSV_FILE = "workouts.csv"
 # Funzione per caricare i dati dal CSV
 def load_workouts():
     if os.path.exists(CSV_FILE):
-        df = pd.read_csv(CSV_FILE)
-        st.session_state.workouts = df.to_dict('records')
+        try:
+            df = pd.read_csv(CSV_FILE)
+            st.session_state.workouts = df.to_dict('records')
+        except pd.errors.EmptyDataError:
+            st.session_state.workouts = []
     else:
         st.session_state.workouts = []
 
@@ -137,4 +140,3 @@ if st.session_state.workouts:
         st.session_state.workouts.clear()
         save_workouts()
         st.success("Tutti gli allenamenti sono stati eliminati!")
-
