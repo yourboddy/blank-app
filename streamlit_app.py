@@ -26,7 +26,7 @@ if "workouts" not in st.session_state:
     load_workouts()
 
 # Funzione per aggiungere una sessione di allenamento
-def add_workout(date, split, exercise, weight, reps_list, rest_time, rep_range):
+def add_workout(date, split, exercise, weight, reps_list, rest_time, rep_range_per_set):
     total_reps = sum(reps_list)
     num_sets = len(reps_list)
     volume = weight * total_reps
@@ -37,14 +37,15 @@ def add_workout(date, split, exercise, weight, reps_list, rest_time, rep_range):
 
     progress_score = (volume * 0.5) + (density * 0.3) + (avg_load * 0.2)
 
-    range_achieved = total_reps >= rep_range[0] and total_reps <= rep_range[1]
+    # Controlla se ogni serie rientra nel range
+    range_achieved_per_set = [rep_range_per_set[i][0] <= reps_list[i] <= rep_range_per_set[i][1] for i in range(num_sets)]
 
     st.session_state.workouts.append({
         "Data": str(date),
         "Split": split,
         "Esercizio": exercise,
         "Peso (kg)": weight,
-        "Serie": len(reps_list),
+        "Serie": num_sets,
         "Ripetizioni per serie": str(reps_list),
         "Ripetizioni totali": total_reps,
         "Recupero medio (s)": rest_time,
@@ -52,33 +53,23 @@ def add_workout(date, split, exercise, weight, reps_list, rest_time, rep_range):
         "Densità": round(density, 2),
         "Carico medio per rep": round(avg_load, 2),
         "Progress Score": round(progress_score, 2),
-        "Range raggiunto": range_achieved
+        "Range raggiunto per serie": range_achieved_per_set
     })
     save_workouts()
 
 # Funzione per calcolare feedback globale
-def feedback(split, exercise, rep_range):
+def feedback(split, exercise):
     records = [w for w in st.session_state.workouts if w["Esercizio"] == exercise and w["Split"] == split]
-    if len(records) < 2:
+    if not records:
         return "Non ci sono abbastanza dati per valutare la progressione."
 
     latest = records[-1]
-    prev = records[-2]
 
-    diff_score = latest["Progress Score"] - prev["Progress Score"]
+    fb = f"Feedback per {exercise} ({latest['Data']}) nel split {split}:\n"
+    for idx, achieved in enumerate(latest['Range raggiunto per serie']):
+        fb += f"Serie {idx+1}: {'✅ Rientra nel range' if achieved else '❌ Fuori dal range'}\n"
 
-    fb = f"Progressione globale per {exercise} ({latest['Data']}) nel split {split}:\n"
-    fb += f"- Progress Score: {latest['Progress Score']} ({'+' if diff_score>=0 else ''}{round(diff_score,2)})\n"
-
-    if diff_score > 0:
-        fb += "📈 Ottimo! Sei in progresso complessivo."
-    elif diff_score < 0:
-        fb += "📉 Attenzione: regressione complessiva."
-    else:
-        fb += "➖ Nessun cambiamento rispetto alla scorsa sessione."
-
-    if latest['Range raggiunto']:
-        fb += f"\n🏅 Hai raggiunto o superato il range di ripetizioni impostato ({rep_range[0]}-{rep_range[1]})."
+    fb += f"Progress Score: {latest['Progress Score']}"
 
     return fb
 
@@ -93,23 +84,29 @@ with st.form("workout_form"):
     exercise = st.text_input("Esercizio", "Panca Piana")
     weight = st.number_input("Peso (kg)", min_value=0, value=60)
 
-    # Inserisci sempre 5 caselle di default per le serie
-    st.subheader("Ripetizioni per serie (max 5 serie)")
+    st.subheader("Ripetizioni per serie e range per serie (max 5 serie)")
     reps_list = []
+    rep_range_per_set = []
     for i in range(5):
-        r = st.number_input(f"Serie {i+1}", min_value=0, value=0, key=f"rep_{i}")
-        if r > 0:
-            reps_list.append(r)
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            reps = st.number_input(f"Serie {i+1} ripetizioni", min_value=0, value=0, key=f"rep_{i}")
+        with col2:
+            min_rep = st.number_input(f"Serie {i+1} min", min_value=0, value=8, key=f"min_{i}")
+        with col3:
+            max_rep = st.number_input(f"Serie {i+1} max", min_value=min_rep, value=12, key=f"max_{i}")
+
+        if reps > 0:
+            reps_list.append(reps)
+            rep_range_per_set.append((min_rep, max_rep))
 
     rest_time = st.number_input("Tempo medio di recupero tra le serie (s)", min_value=0, value=90)
-    min_reps = st.number_input("Ripetizioni minime per il range", min_value=1, value=8)
-    max_reps = st.number_input("Ripetizioni massime per il range", min_value=min_reps, value=12)
 
     submitted = st.form_submit_button("Aggiungi")
 
     if submitted:
         if reps_list:
-            add_workout(date, split, exercise, weight, reps_list, rest_time, (min_reps, max_reps))
+            add_workout(date, split, exercise, weight, reps_list, rest_time, rep_range_per_set)
             st.success("Allenamento aggiunto!")
         else:
             st.warning("Inserisci almeno una ripetizione maggiore di zero.")
@@ -126,34 +123,4 @@ if st.session_state.workouts:
     df_filtered = df[(df["Split"] == split_scelta) & (df["Esercizio"] == scelta)]
     st.dataframe(df_filtered)
 
-    st.text(feedback(split_scelta, scelta, (min_reps, max_reps)))
-
-    st.subheader("📈 Progressione Volume")
-    chart_data = df_filtered[["Data", "Volume"]]
-    st.line_chart(chart_data.set_index("Data"))
-
-    st.subheader("⚡ Progressione Densità")
-    chart_density = df_filtered[["Data", "Densità"]]
-    st.line_chart(chart_density.set_index("Data"))
-
-    st.subheader("🏋️‍♂️ Progressione Carico Medio")
-    chart_load = df_filtered[["Data", "Carico medio per rep"]]
-    st.line_chart(chart_load.set_index("Data"))
-
-    st.subheader("🌟 Progressione Globale (Progress Score)")
-    chart_score = df_filtered[["Data", "Progress Score"]]
-    st.line_chart(chart_score.set_index("Data"))
-
-    st.subheader("🗑️ Gestione Allenamenti")
-    idx_to_delete = st.selectbox("Seleziona l'allenamento da eliminare", [f"{i} - {w['Data']} - {w['Split']} - {w['Esercizio']}" for i, w in enumerate(df_filtered.to_dict('records'))])
-    if st.button("Elimina allenamento selezionato"):
-        record_to_delete = df_filtered.to_dict('records')[int(idx_to_delete.split(' - ')[0])]
-        original_idx = next(i for i, w in enumerate(st.session_state.workouts) if w == record_to_delete)
-        st.session_state.workouts.pop(original_idx)
-        save_workouts()
-        st.success("Allenamento eliminato!")
-
-    if st.button("Elimina tutti gli allenamenti"):
-        st.session_state.workouts.clear()
-        save_workouts()
-        st.success("Tutti gli allenamenti sono stati eliminati!")
+    st.text(feedback(split_scelta, scelta))
