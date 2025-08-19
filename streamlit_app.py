@@ -26,16 +26,18 @@ if "workouts" not in st.session_state:
     load_workouts()
 
 # Funzione per aggiungere una sessione di allenamento
-def add_workout(date, split, exercise, weight, reps_list, rest_time):
+def add_workout(date, split, exercise, weight, reps_list, rest_time, rep_range):
     total_reps = sum(reps_list)
-    volume = weight * total_reps
     num_sets = len(reps_list)
+    volume = weight * total_reps
     num_pauses = max(0, num_sets - 1)
     total_rest = rest_time * num_pauses
     density = volume / total_rest if total_rest > 0 else 0
     avg_load = volume / total_reps if total_reps > 0 else 0
 
     progress_score = (volume * 0.5) + (density * 0.3) + (avg_load * 0.2)
+
+    range_achieved = total_reps >= rep_range[0] and total_reps <= rep_range[1]
 
     st.session_state.workouts.append({
         "Data": str(date),
@@ -49,7 +51,8 @@ def add_workout(date, split, exercise, weight, reps_list, rest_time):
         "Volume": volume,
         "Densità": round(density, 2),
         "Carico medio per rep": round(avg_load, 2),
-        "Progress Score": round(progress_score, 2)
+        "Progress Score": round(progress_score, 2),
+        "Range raggiunto": range_achieved
     })
     save_workouts()
 
@@ -74,6 +77,9 @@ def feedback(split, exercise):
     else:
         fb += "➖ Nessun cambiamento rispetto alla scorsa sessione."
 
+    if latest['Range raggiunto']:
+        fb += f"\n🏅 Hai raggiunto o superato il range di ripetizioni impostato ({rep_range[0]}-{rep_range[1]})."
+
     return fb
 
 # ===================== STREAMLIT APP =====================
@@ -94,10 +100,13 @@ with st.form("workout_form"):
         reps_list.append(r)
 
     rest_time = st.number_input("Tempo medio di recupero tra le serie (s)", min_value=0, value=90)
+    min_reps = st.number_input("Ripetizioni minime per il range", min_value=1, value=8)
+    max_reps = st.number_input("Ripetizioni massime per il range", min_value=min_reps, value=12)
+
     submitted = st.form_submit_button("Aggiungi")
 
     if submitted:
-        add_workout(date, split, exercise, weight, reps_list, rest_time)
+        add_workout(date, split, exercise, weight, reps_list, rest_time, (min_reps, max_reps))
         st.success("Allenamento aggiunto!")
 
 # Mostra storico allenamenti filtrato per esercizio
@@ -109,7 +118,6 @@ if st.session_state.workouts:
     esercizi = df[df["Split"] == split_scelta]["Esercizio"].unique().tolist()
     scelta = st.selectbox("Seleziona esercizio per analisi", esercizi)
 
-    # Filtra solo gli allenamenti relativi all'esercizio selezionato
     df_filtered = df[(df["Split"] == split_scelta) & (df["Esercizio"] == scelta)]
     st.dataframe(df_filtered)
 
@@ -134,7 +142,6 @@ if st.session_state.workouts:
     st.subheader("🗑️ Gestione Allenamenti")
     idx_to_delete = st.selectbox("Seleziona l'allenamento da eliminare", [f"{i} - {w['Data']} - {w['Split']} - {w['Esercizio']}" for i, w in enumerate(df_filtered.to_dict('records'))])
     if st.button("Elimina allenamento selezionato"):
-        # Trova l'indice originale nel session_state
         record_to_delete = df_filtered.to_dict('records')[int(idx_to_delete.split(' - ')[0])]
         original_idx = next(i for i, w in enumerate(st.session_state.workouts) if w == record_to_delete)
         st.session_state.workouts.pop(original_idx)
@@ -145,3 +152,4 @@ if st.session_state.workouts:
         st.session_state.workouts.clear()
         save_workouts()
         st.success("Tutti gli allenamenti sono stati eliminati!")
+
