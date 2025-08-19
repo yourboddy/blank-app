@@ -7,21 +7,24 @@ if "workouts" not in st.session_state:
     st.session_state.workouts = []
 
 # Funzione per aggiungere una sessione di allenamento
-def add_workout(exercise, weight, reps_list, duration):
+def add_workout(exercise, weight, reps_list, rest_time):
     date = datetime.date.today()
     total_reps = sum(reps_list)
     volume = weight * total_reps
-    density = volume / duration if duration > 0 else 0
+    num_sets = len(reps_list)
+    num_pauses = max(0, num_sets - 1)
+    total_rest = rest_time * num_pauses
+    density = volume / total_rest if total_rest > 0 else 0
     avg_load = volume / total_reps if total_reps > 0 else 0
 
     st.session_state.workouts.append({
         "Data": str(date),
         "Esercizio": exercise,
         "Peso (kg)": weight,
-        "Serie": len(reps_list),
+        "Serie": num_sets,
         "Ripetizioni per serie": str(reps_list),
         "Ripetizioni totali": total_reps,
-        "Durata (min)": duration,
+        "Recupero medio (s)": rest_time,
         "Volume": volume,
         "Densità": round(density, 2),
         "Carico medio per rep": round(avg_load, 2)
@@ -65,11 +68,11 @@ with st.form("workout_form"):
         r = st.number_input(f"Ripetizioni serie {i+1}", min_value=1, value=10, key=f"rep_{i}")
         reps_list.append(r)
 
-    duration = st.number_input("Durata (min)", min_value=1, value=30)
+    rest_time = st.number_input("Tempo medio di recupero tra le serie (secondi)", min_value=0, value=90)
     submitted = st.form_submit_button("Aggiungi")
 
     if submitted:
-        add_workout(exercise, weight, reps_list, duration)
+        add_workout(exercise, weight, reps_list, rest_time)
         st.success("Allenamento aggiunto!")
 
 # Mostra storico allenamenti
@@ -87,5 +90,10 @@ if st.session_state.workouts:
     st.subheader("📈 Progressione Volume")
     chart_data = df[df["Esercizio"] == scelta][["Data", "Volume"]]
     st.line_chart(chart_data.set_index("Data"))
+
+    # Grafico progressione densità
+    st.subheader("⚡ Progressione Densità")
+    chart_density = df[df["Esercizio"] == scelta][["Data", "Densità"]]
+    st.line_chart(chart_density.set_index("Data"))
 
 
