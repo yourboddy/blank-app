@@ -100,39 +100,44 @@ with st.form("workout_form"):
         add_workout(date, split, exercise, weight, reps_list, rest_time)
         st.success("Allenamento aggiunto!")
 
-# Mostra storico allenamenti
+# Mostra storico allenamenti filtrato per esercizio
 if st.session_state.workouts:
     df = pd.DataFrame(st.session_state.workouts)
     st.subheader("📊 Storico Allenamenti")
-    st.dataframe(df)
 
     split_scelta = st.selectbox("Seleziona uno Split per analisi", df["Split"].unique().tolist())
     esercizi = df[df["Split"] == split_scelta]["Esercizio"].unique().tolist()
     scelta = st.selectbox("Seleziona esercizio per analisi", esercizi)
 
+    # Filtra solo gli allenamenti relativi all'esercizio selezionato
+    df_filtered = df[(df["Split"] == split_scelta) & (df["Esercizio"] == scelta)]
+    st.dataframe(df_filtered)
+
     st.text(feedback(split_scelta, scelta))
 
     st.subheader("📈 Progressione Volume")
-    chart_data = df[(df["Esercizio"] == scelta) & (df["Split"] == split_scelta)][["Data", "Volume"]]
+    chart_data = df_filtered[["Data", "Volume"]]
     st.line_chart(chart_data.set_index("Data"))
 
     st.subheader("⚡ Progressione Densità")
-    chart_density = df[(df["Esercizio"] == scelta) & (df["Split"] == split_scelta)][["Data", "Densità"]]
+    chart_density = df_filtered[["Data", "Densità"]]
     st.line_chart(chart_density.set_index("Data"))
 
     st.subheader("🏋️‍♂️ Progressione Carico Medio")
-    chart_load = df[(df["Esercizio"] == scelta) & (df["Split"] == split_scelta)][["Data", "Carico medio per rep"]]
+    chart_load = df_filtered[["Data", "Carico medio per rep"]]
     st.line_chart(chart_load.set_index("Data"))
 
     st.subheader("🌟 Progressione Globale (Progress Score)")
-    chart_score = df[(df["Esercizio"] == scelta) & (df["Split"] == split_scelta)][["Data", "Progress Score"]]
+    chart_score = df_filtered[["Data", "Progress Score"]]
     st.line_chart(chart_score.set_index("Data"))
 
     st.subheader("🗑️ Gestione Allenamenti")
-    idx_to_delete = st.selectbox("Seleziona l'allenamento da eliminare", [f"{i} - {w['Data']} - {w['Split']} - {w['Esercizio']}" for i, w in enumerate(st.session_state.workouts)])
+    idx_to_delete = st.selectbox("Seleziona l'allenamento da eliminare", [f"{i} - {w['Data']} - {w['Split']} - {w['Esercizio']}" for i, w in enumerate(df_filtered.to_dict('records'))])
     if st.button("Elimina allenamento selezionato"):
-        idx = int(idx_to_delete.split(" - ")[0])
-        st.session_state.workouts.pop(idx)
+        # Trova l'indice originale nel session_state
+        record_to_delete = df_filtered.to_dict('records')[int(idx_to_delete.split(' - ')[0])]
+        original_idx = next(i for i, w in enumerate(st.session_state.workouts) if w == record_to_delete)
+        st.session_state.workouts.pop(original_idx)
         save_workouts()
         st.success("Allenamento eliminato!")
 
