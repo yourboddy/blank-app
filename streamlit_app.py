@@ -100,6 +100,11 @@ if st.session_state.workouts:
     chart_density = df[df["Esercizio"] == scelta][["Data", "Densità"]]
     st.line_chart(chart_density.set_index("Data"))
 
+    # Grafico progressione carico medio
+    st.subheader("🏋️‍♂️ Progressione Carico Medio")
+    chart_load = df[df["Esercizio"] == scelta][["Data", "Carico medio per rep"]]
+    st.line_chart(chart_load.set_index("Data"))
+
     # Grafico progressione score complessivo
     st.subheader("🌟 Progressione Globale (Progress Score)")
     chart_score = df[df["Esercizio"] == scelta][["Data", "Progress Score"]]
@@ -115,8 +120,10 @@ if st.session_state.workouts:
         st.session_state.workouts.pop(idx)
         st.success("Allenamento eliminato!")
 
-    # Eliminare tutti gli allenamenti
+    # Eliminare tutti gli allenamenti con conferma
     if st.button("Elimina tutti gli allenamenti"):
-        st.session_state.workouts.clear()
-        st.success("Tutti gli allenamenti sono stati eliminati!")
+        if st.confirm("Sei sicuro di voler eliminare tutti gli allenamenti? Questa azione non è reversibile."):
+            st.session_state.workouts.clear()
+            st.success("Tutti gli allenamenti sono stati eliminati!")
+
 
