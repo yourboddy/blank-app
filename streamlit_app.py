@@ -1,10 +1,26 @@
 import streamlit as st
 import pandas as pd
 import datetime
+import os
+
+CSV_FILE = "workouts.csv"
+
+# Funzione per caricare i dati dal CSV
+def load_workouts():
+    if os.path.exists(CSV_FILE):
+        df = pd.read_csv(CSV_FILE)
+        st.session_state.workouts = df.to_dict('records')
+    else:
+        st.session_state.workouts = []
+
+# Funzione per salvare i dati sul CSV
+def save_workouts():
+    df = pd.DataFrame(st.session_state.workouts)
+    df.to_csv(CSV_FILE, index=False)
 
 # Inizializza storage (session_state)
 if "workouts" not in st.session_state:
-    st.session_state.workouts = []
+    load_workouts()
 
 # Funzione per aggiungere una sessione di allenamento
 def add_workout(date, exercise, weight, reps_list, rest_time):
@@ -16,7 +32,6 @@ def add_workout(date, exercise, weight, reps_list, rest_time):
     density = volume / total_rest if total_rest > 0 else 0
     avg_load = volume / total_reps if total_reps > 0 else 0
 
-    # Progress Score: media pesata di volume, densità e carico medio
     progress_score = (volume * 0.5) + (density * 0.3) + (avg_load * 0.2)
 
     st.session_state.workouts.append({
@@ -32,6 +47,7 @@ def add_workout(date, exercise, weight, reps_list, rest_time):
         "Carico medio per rep": round(avg_load, 2),
         "Progress Score": round(progress_score, 2)
     })
+    save_workouts()
 
 # Funzione per calcolare feedback globale
 def feedback(exercise):
@@ -85,45 +101,36 @@ if st.session_state.workouts:
     st.subheader("📊 Storico Allenamenti")
     st.dataframe(df)
 
-    # Selezione esercizio per feedback
     esercizi = df["Esercizio"].unique().tolist()
     scelta = st.selectbox("Seleziona esercizio per analisi:", esercizi)
     st.text(feedback(scelta))
 
-    # Grafico progressione volume
     st.subheader("📈 Progressione Volume")
     chart_data = df[df["Esercizio"] == scelta][["Data", "Volume"]]
     st.line_chart(chart_data.set_index("Data"))
 
-    # Grafico progressione densità
     st.subheader("⚡ Progressione Densità")
     chart_density = df[df["Esercizio"] == scelta][["Data", "Densità"]]
     st.line_chart(chart_density.set_index("Data"))
 
-    # Grafico progressione carico medio
     st.subheader("🏋️‍♂️ Progressione Carico Medio")
     chart_load = df[df["Esercizio"] == scelta][["Data", "Carico medio per rep"]]
     st.line_chart(chart_load.set_index("Data"))
 
-    # Grafico progressione score complessivo
     st.subheader("🌟 Progressione Globale (Progress Score)")
     chart_score = df[df["Esercizio"] == scelta][["Data", "Progress Score"]]
     st.line_chart(chart_score.set_index("Data"))
 
-    # Sezione per eliminare allenamenti
     st.subheader("🗑️ Gestione Allenamenti")
-
-    # Eliminare un singolo allenamento
     idx_to_delete = st.selectbox("Seleziona l'allenamento da eliminare:", [f"{i} - {w['Data']} - {w['Esercizio']}" for i, w in enumerate(st.session_state.workouts)])
     if st.button("Elimina allenamento selezionato"):
         idx = int(idx_to_delete.split(" - ")[0])
         st.session_state.workouts.pop(idx)
+        save_workouts()
         st.success("Allenamento eliminato!")
 
-    # Eliminare tutti gli allenamenti con conferma
     if st.button("Elimina tutti gli allenamenti"):
-        if st.confirm("Sei sicuro di voler eliminare tutti gli allenamenti? Questa azione non è reversibile."):
-            st.session_state.workouts.clear()
-            st.success("Tutti gli allenamenti sono stati eliminati!")
-
+        st.session_state.workouts.clear()
+        save_workouts()
+        st.success("Tutti gli allenamenti sono stati eliminati!")
 
