@@ -44,7 +44,7 @@ def add_workout(date, split, exercise, weight, reps_list, rest_time, rep_range):
         "Split": split,
         "Esercizio": exercise,
         "Peso (kg)": weight,
-        "Serie": num_sets,
+        "Serie": len(reps_list),
         "Ripetizioni per serie": str(reps_list),
         "Ripetizioni totali": total_reps,
         "Recupero medio (s)": rest_time,
@@ -93,13 +93,12 @@ with st.form("workout_form"):
     exercise = st.text_input("Esercizio", "Panca Piana")
     weight = st.number_input("Peso (kg)", min_value=0, value=60)
 
-    n_sets = st.number_input("Numero di serie", min_value=1, value=3)
-
+    # Inserisci sempre 5 caselle di default per le serie
+    st.subheader("Ripetizioni per serie (max 5 serie)")
     reps_list = []
-    if n_sets > 0:
-        st.subheader("Ripetizioni per serie")
-        for i in range(int(n_sets)):
-            r = st.number_input(f"Serie {i+1}", min_value=1, value=10, key=f"rep_{i}")
+    for i in range(5):
+        r = st.number_input(f"Serie {i+1}", min_value=0, value=0, key=f"rep_{i}")
+        if r > 0:
             reps_list.append(r)
 
     rest_time = st.number_input("Tempo medio di recupero tra le serie (s)", min_value=0, value=90)
@@ -109,8 +108,11 @@ with st.form("workout_form"):
     submitted = st.form_submit_button("Aggiungi")
 
     if submitted:
-        add_workout(date, split, exercise, weight, reps_list, rest_time, (min_reps, max_reps))
-        st.success("Allenamento aggiunto!")
+        if reps_list:
+            add_workout(date, split, exercise, weight, reps_list, rest_time, (min_reps, max_reps))
+            st.success("Allenamento aggiunto!")
+        else:
+            st.warning("Inserisci almeno una ripetizione maggiore di zero.")
 
 # Mostra storico allenamenti filtrato per esercizio
 if st.session_state.workouts:
