@@ -23,7 +23,7 @@ if "workouts" not in st.session_state:
     load_workouts()
 
 # Funzione per aggiungere una sessione di allenamento
-def add_workout(date, exercise, weight, reps_list, rest_time):
+def add_workout(date, split, exercise, weight, reps_list, rest_time):
     total_reps = sum(reps_list)
     volume = weight * total_reps
     num_sets = len(reps_list)
@@ -36,6 +36,7 @@ def add_workout(date, exercise, weight, reps_list, rest_time):
 
     st.session_state.workouts.append({
         "Data": str(date),
+        "Split": split,
         "Esercizio": exercise,
         "Peso (kg)": weight,
         "Serie": num_sets,
@@ -50,8 +51,8 @@ def add_workout(date, exercise, weight, reps_list, rest_time):
     save_workouts()
 
 # Funzione per calcolare feedback globale
-def feedback(exercise):
-    records = [w for w in st.session_state.workouts if w["Esercizio"] == exercise]
+def feedback(split, exercise):
+    records = [w for w in st.session_state.workouts if w["Esercizio"] == exercise and w["Split"] == split]
     if len(records) < 2:
         return "Non ci sono abbastanza dati per valutare la progressione."
 
@@ -60,7 +61,7 @@ def feedback(exercise):
 
     diff_score = latest["Progress Score"] - prev["Progress Score"]
 
-    fb = f"Progressione globale per {exercise} ({latest['Data']}):\n"
+    fb = f"Progressione globale per {exercise} ({latest['Data']}) nel split {split}:\n"
     fb += f"- Progress Score: {latest['Progress Score']} ({'+' if diff_score>=0 else ''}{round(diff_score,2)})\n"
 
     if diff_score > 0:
@@ -79,6 +80,7 @@ st.title("🏋️ Tracciamento Progressi in Palestra")
 st.subheader("Inserisci un nuovo allenamento")
 with st.form("workout_form"):
     date = st.date_input("Data allenamento", datetime.date.today())
+    split = st.text_input("Nome dello Split", "Full Body")
     exercise = st.text_input("Esercizio", "Panca Piana")
     weight = st.number_input("Peso (kg)", min_value=0, value=60)
     n_sets = st.number_input("Numero di serie", min_value=1, value=3)
@@ -88,11 +90,11 @@ with st.form("workout_form"):
         r = st.number_input(f"Ripetizioni serie {i+1}", min_value=1, value=10, key=f"rep_{i}")
         reps_list.append(r)
 
-    rest_time = st.number_input("Tempo medio di recupero tra le serie (secondi)", min_value=0, value=90)
+    rest_time = st.number_input("Tempo medio di recupero tra le serie (s)", min_value=0, value=90)
     submitted = st.form_submit_button("Aggiungi")
 
     if submitted:
-        add_workout(date, exercise, weight, reps_list, rest_time)
+        add_workout(date, split, exercise, weight, reps_list, rest_time)
         st.success("Allenamento aggiunto!")
 
 # Mostra storico allenamenti
@@ -101,28 +103,30 @@ if st.session_state.workouts:
     st.subheader("📊 Storico Allenamenti")
     st.dataframe(df)
 
-    esercizi = df["Esercizio"].unique().tolist()
-    scelta = st.selectbox("Seleziona esercizio per analisi:", esercizi)
-    st.text(feedback(scelta))
+    split_scelta = st.selectbox("Seleziona uno Split per analisi", df["Split"].unique().tolist())
+    esercizi = df[df["Split"] == split_scelta]["Esercizio"].unique().tolist()
+    scelta = st.selectbox("Seleziona esercizio per analisi", esercizi)
+
+    st.text(feedback(split_scelta, scelta))
 
     st.subheader("📈 Progressione Volume")
-    chart_data = df[df["Esercizio"] == scelta][["Data", "Volume"]]
+    chart_data = df[(df["Esercizio"] == scelta) & (df["Split"] == split_scelta)][["Data", "Volume"]]
     st.line_chart(chart_data.set_index("Data"))
 
     st.subheader("⚡ Progressione Densità")
-    chart_density = df[df["Esercizio"] == scelta][["Data", "Densità"]]
+    chart_density = df[(df["Esercizio"] == scelta) & (df["Split"] == split_scelta)][["Data", "Densità"]]
     st.line_chart(chart_density.set_index("Data"))
 
     st.subheader("🏋️‍♂️ Progressione Carico Medio")
-    chart_load = df[df["Esercizio"] == scelta][["Data", "Carico medio per rep"]]
+    chart_load = df[(df["Esercizio"] == scelta) & (df["Split"] == split_scelta)][["Data", "Carico medio per rep"]]
     st.line_chart(chart_load.set_index("Data"))
 
     st.subheader("🌟 Progressione Globale (Progress Score)")
-    chart_score = df[df["Esercizio"] == scelta][["Data", "Progress Score"]]
+    chart_score = df[(df["Esercizio"] == scelta) & (df["Split"] == split_scelta)][["Data", "Progress Score"]]
     st.line_chart(chart_score.set_index("Data"))
 
     st.subheader("🗑️ Gestione Allenamenti")
-    idx_to_delete = st.selectbox("Seleziona l'allenamento da eliminare:", [f"{i} - {w['Data']} - {w['Esercizio']}" for i, w in enumerate(st.session_state.workouts)])
+    idx_to_delete = st.selectbox("Seleziona l'allenamento da eliminare", [f"{i} - {w['Data']} - {w['Split']} - {w['Esercizio']}" for i, w in enumerate(st.session_state.workouts)])
     if st.button("Elimina allenamento selezionato"):
         idx = int(idx_to_delete.split(" - ")[0])
         st.session_state.workouts.pop(idx)
