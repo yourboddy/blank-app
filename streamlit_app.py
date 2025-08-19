@@ -92,6 +92,7 @@ with st.form("workout_form"):
     split = st.text_input("Nome dello Split", "Full Body")
     exercise = st.text_input("Esercizio", "Panca Piana")
     weight = st.number_input("Peso (kg)", min_value=0, value=60)
+
     n_sets = st.number_input("Numero di serie", min_value=1, value=3)
 
     reps_list = []
